@@ -33,7 +33,16 @@ class ReasonixApi(
 
     // ── 取消当前操作 ──
     suspend fun cancel() = withContext(Dispatchers.IO) {
-        post("/cancel")
+        // 新版 serve 的 /cancel 不接受 JSON body，只接受空 body
+        val request = Request.Builder()
+            .url("$baseUrl/cancel")
+            .post("".toRequestBody(null))
+            .build()
+        try {
+            client.newCall(request).execute().close()
+        } catch (_: IOException) {
+            // 忽略取消请求失败
+        }
     }
 
     // ── 获取历史消息 ──

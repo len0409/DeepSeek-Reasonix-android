@@ -34,7 +34,10 @@ data class SseEvent(
     val approval: ApprovalPayload? = null,
     val ask: AskPayload? = null,
     val compaction: CompactionPayload? = null,
-    val message: MessagePayload? = null
+    val message: MessagePayload? = null,
+    val turnId: String? = null,
+    val status: String? = null,
+    val phase: String? = null
 )
 
 // ── 工具相关 ──

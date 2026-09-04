@@ -316,6 +316,13 @@ class ChatViewModel(
     }
 
     private fun handleSseEvent(event: SseEvent) {
+        // 回合结束判定：新版 serve 不发 turn_done，靠 turn_status(status=done/completed/error) 或 phase=done 结束
+        val isTurnEnd = event.kind == "turn_done" ||
+            (event.kind == "turn_status" && (event.status == "done" || event.status == "completed" || event.status == "error" || event.status == "canceled" || event.status == "cancelled"))
+        if (isTurnEnd) {
+            finalizeTurn()
+            return
+        }
         when (event.kind) {
             "turn_started" -> {
                 currentAssistantMsgIndex = null
@@ -325,7 +332,9 @@ class ChatViewModel(
             }
 
             "reasoning" -> {
-                event.reasoning?.let { r ->
+                // 新版 serve 的 reasoning 事件把内容放在 text 字段，旧版放在 reasoning 字段
+                val r = event.reasoning ?: event.text
+                if (!r.isNullOrEmpty()) {
                     pendingReasoning?.append(r)
                     updatePendingAssistant()
                 }
@@ -578,8 +587,15 @@ class ChatViewModel(
 
     fun cancelStreaming() {
         viewModelScope.launch {
-            repository.cancel()
+            // 新版 serve 的 /cancel 不接受 JSON body（空 body 返回 204）
+            try {
+                repository.cancel()
+            } catch (_: Exception) {
+                // 忽略取消请求失败，本地状态必须重置
+            }
             finalizeTurn()
+            // 主动断开 SSE，避免取消后仍挂起
+            repository.disconnectSse()
         }
     }
 

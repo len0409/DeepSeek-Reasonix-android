@@ -88,6 +88,7 @@ fun ChatScreen(initialServerUrl: String = "http://127.0.0.1:8920", viewModel: Ch
             .fillMaxSize()
             .background(Bg)
             .imePadding()
+            .navigationBarsPadding()
             .onKeyEvent { event ->
                 if (event.type == KeyEventType.KeyUp) return@onKeyEvent false
                 when {
