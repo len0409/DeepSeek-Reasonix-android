@@ -70,31 +70,46 @@ fun MarkdownRenderer(
     // 使用 applicationContext 避免泄露 Activity
     val markwon = remember { buildMarkwon(context.applicationContext) }
 
+    // 是否包含表格（表格需要横向滚动；普通文本应自动换行）
+    val hasTable = markdown.contains("|") && markdown.contains("\n")
+
     AndroidView(
         factory = { ctx ->
-            // HorizontalScrollView 包裹 TextView，支持表格左右滑动
-            HorizontalScrollView(ctx).apply {
-                isHorizontalScrollBarEnabled = false
-                overScrollMode = View.OVER_SCROLL_NEVER
-                isFillViewport = false
-                addView(
-                    TextView(ctx).apply {
-                        setTextColor(FG)
-                        setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
-                        setLineSpacing(4f, 1f)
-                        movementMethod = LinkMovementMethod.getInstance()
-                        isClickable = true
-                        // 流式更新时不复制 Spannable，防止闪烁
-                        setSpannableFactory(NoCopySpannableFactory.getInstance())
-                    }, ViewGroup.LayoutParams(
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT
+            if (hasTable) {
+                // 含表格：HorizontalScrollView 包裹 TextView，支持表格左右滑动
+                HorizontalScrollView(ctx).apply {
+                    isHorizontalScrollBarEnabled = false
+                    overScrollMode = View.OVER_SCROLL_NEVER
+                    isFillViewport = false
+                    addView(
+                        TextView(ctx).apply {
+                            setTextColor(FG)
+                            setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+                            setLineSpacing(4f, 1f)
+                            movementMethod = LinkMovementMethod.getInstance()
+                            isClickable = true
+                            // 流式更新时不复制 Spannable，防止闪烁
+                            setSpannableFactory(NoCopySpannableFactory.getInstance())
+                        }, ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.WRAP_CONTENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT
+                        )
                     )
-                )
+                }
+            } else {
+                // 普通文本：直接 TextView，宽度充满父容器，自动换行
+                TextView(ctx).apply {
+                    setTextColor(FG)
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+                    setLineSpacing(4f, 1f)
+                    movementMethod = LinkMovementMethod.getInstance()
+                    isClickable = true
+                    setSpannableFactory(NoCopySpannableFactory.getInstance())
+                }
             }
         },
-        update = { scrollView ->
-            val textView = scrollView.getChildAt(0) as TextView
+        update = { view ->
+            val textView = if (view is HorizontalScrollView) view.getChildAt(0) as TextView else view as TextView
             markwon.setMarkdown(textView, markdown)
         },
         modifier = modifier,

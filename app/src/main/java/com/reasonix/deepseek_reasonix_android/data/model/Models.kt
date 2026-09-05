@@ -37,7 +37,8 @@ data class SseEvent(
     val message: MessagePayload? = null,
     val turnId: String? = null,
     val status: String? = null,
-    val phase: String? = null
+    val phase: String? = null,
+    val sessionCurrent: Boolean? = null
 )
 
 // ── 工具相关 ──
@@ -170,6 +171,17 @@ data class CheckpointInfo(
     val turn: Int = 0,
     val prompt: String? = null,
     val files: Int = 0
+)
+
+// ── Provider 配置（模型管理） ──
+
+data class ProviderInfo(
+    val name: String = "",
+    val kind: String = "openai",
+    val baseUrl: String = "",
+    val models: List<String> = emptyList(),
+    val default: String = "",
+    val apiKeyEnv: String = ""
 )
 
 // ── UI 消息模型 ──

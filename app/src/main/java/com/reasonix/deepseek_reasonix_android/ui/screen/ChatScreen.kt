@@ -174,6 +174,7 @@ fun ChatScreen(initialServerUrl: String = "http://127.0.0.1:8920", viewModel: Ch
                     viewModel.setToolApprovalMode(newMode)
                 },
                 onToggleAuto = { viewModel.setToolApprovalMode("auto") },
+                onOpenProviders = { viewModel.showProviderDialog() },
                 serverUrl = state.serverUrl,
                 onServerUrlChange = { viewModel.onServerUrlChange(it) },
                 isConnected = state.error == null,
@@ -287,6 +288,17 @@ fun ChatScreen(initialServerUrl: String = "http://127.0.0.1:8920", viewModel: Ch
                 cumulativeCacheHit = state.cumulativeCacheHit,
                 cumulativeCacheMiss = state.cumulativeCacheMiss,
                 onDismiss = { viewModel.dismissStatsDialog() }
+            )
+        }
+
+        // ── Provider 管理对话框 ──
+        if (state.showProviderDialog) {
+            ProviderManagerDialog(
+                providers = state.providers,
+                message = state.providerMessage,
+                onAdd = { viewModel.addProvider(it) },
+                onDelete = { viewModel.removeProvider(it) },
+                onDismiss = { viewModel.dismissProviderDialog() }
             )
         }
     }
@@ -592,6 +604,7 @@ private fun Footer(
     onTogglePlan: () -> Unit,
     onToggleBypass: (() -> Unit)?,
     onToggleAuto: (() -> Unit)?,
+    onOpenProviders: (() -> Unit)?,
     serverUrl: String,
     onServerUrlChange: (String) -> Unit,
     isConnected: Boolean,
@@ -623,6 +636,8 @@ private fun Footer(
                 ToolbarButton("Plan", active = planMode, accent = false) { onTogglePlan() }
                 // YOLO
                 ToolbarButton("YOLO", active = toolApprovalMode == "yolo", danger = true) { onToggleBypass?.invoke() }
+                // 模型管理
+                ToolbarButton("模型", active = false, accent = true) { onOpenProviders?.invoke() }
 
                 // 分隔
                 Box(modifier = Modifier.width(1.dp).height(16.dp).background(Border))

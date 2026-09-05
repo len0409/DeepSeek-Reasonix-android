@@ -1,6 +1,7 @@
 package com.reasonix.deepseek_reasonix_android.data.api
 
 import com.google.gson.Gson
+import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
 import com.reasonix.deepseek_reasonix_android.data.model.*
 import kotlinx.coroutines.Dispatchers
@@ -154,6 +155,93 @@ class ReasonixApi(
     // ── 工具审批模式 ──
     suspend fun setToolApprovalMode(mode: String) = withContext(Dispatchers.IO) {
         post("/tool-approval-mode", mapOf("mode" to mode))
+    }
+
+    // ═══════════════════════════════════════════════
+    // Provider 配置管理（Termux 配置服务 :8790）
+    // ═══════════════════════════════════════════════
+
+    private fun cfgBaseUrl(): String = baseUrl.replace(Regex(":\\d+$"), ":8790")
+
+    /** 列出所有已配置的 provider（读 Termux config.toml） */
+    suspend fun listProviders(): List<ProviderInfo> = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder()
+                .url(cfgBaseUrl() + "/api/providers")
+                .get()
+                .build()
+            client.newCall(request).execute().use { resp ->
+                if (!resp.isSuccessful) return@withContext emptyList()
+                val body = resp.body?.string() ?: return@withContext emptyList()
+                val obj = gson.fromJson(body, JsonObject::class.java)
+                val arr = obj.getAsJsonArray("providers") ?: return@withContext emptyList()
+                val list = mutableListOf<ProviderInfo>()
+                arr.forEach { el ->
+                    val o = el.asJsonObject
+                    val models = mutableListOf<String>()
+                    o.getAsJsonArray("models")?.forEach { models.add(it.asString) }
+                    list.add(
+                        ProviderInfo(
+                            name = o.get("name")?.asString ?: "",
+                            kind = o.get("kind")?.asString ?: "openai",
+                            baseUrl = o.get("base_url")?.asString ?: "",
+                            models = models,
+                            default = o.get("default")?.asString ?: "",
+                            apiKeyEnv = o.get("api_key_env")?.asString ?: ""
+                        )
+                    )
+                }
+                list
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    /** 新增或更新 provider。返回 (是否成功, 消息) */
+    suspend fun upsertProvider(p: ProviderInfo): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+        try {
+            val payload = mapOf(
+                "name" to p.name,
+                "kind" to p.kind,
+                "base_url" to p.baseUrl,
+                "models" to p.models,
+                "default" to p.default,
+                "api_key_env" to p.apiKeyEnv
+            )
+            val request = Request.Builder()
+                .url(cfgBaseUrl() + "/api/providers")
+                .post(gson.toJson(payload).toRequestBody(jsonMediaType))
+                .build()
+            client.newCall(request).execute().use { resp ->
+                val body = resp.body?.string() ?: "{}"
+                val obj = gson.fromJson(body, JsonObject::class.java)
+                val ok = obj.get("ok")?.asBoolean ?: false
+                val msg = obj.get("message")?.asString ?: obj.get("error")?.asString ?: resp.message
+                Pair(ok, msg)
+            }
+        } catch (e: Exception) {
+            Pair(false, "连接配置服务失败: ${e.message}")
+        }
+    }
+
+    /** 删除 provider。返回 (是否成功, 消息) */
+    suspend fun deleteProvider(name: String): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder()
+                .url(cfgBaseUrl() + "/api/providers/" + name)
+                .delete()
+                .build()
+            client.newCall(request).execute().use { resp ->
+                val body = resp.body?.string() ?: "{}"
+                val obj = gson.fromJson(body, JsonObject::class.java)
+                val ok = obj.get("ok")?.asBoolean ?: false
+                val msg = obj.get("message")?.asString ?: obj.get("error")?.asString ?: resp.message
+                Pair(ok, msg)
+            }
+        } catch (e: Exception) {
+            Pair(false, "连接配置服务失败: ${e.message}")
+        }
     }
 
     // ═══════════════════════════════════════════════

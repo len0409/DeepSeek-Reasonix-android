@@ -60,4 +60,12 @@ class ChatRepository(
     suspend fun setPlan(on: Boolean) = api.setPlan(on)
 
     suspend fun setToolApprovalMode(mode: String) = api.setToolApprovalMode(mode)
+
+    // ── Provider 配置管理 ──
+
+    suspend fun listProviders(): List<ProviderInfo> = api.listProviders()
+
+    suspend fun upsertProvider(p: ProviderInfo): Pair<Boolean, String> = api.upsertProvider(p)
+
+    suspend fun deleteProvider(name: String): Pair<Boolean, String> = api.deleteProvider(name)
 }

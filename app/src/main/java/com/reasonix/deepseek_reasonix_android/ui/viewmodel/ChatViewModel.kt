@@ -28,7 +28,10 @@ data class ChatUiState(
     val cumulativeCost: Double = 0.0,
     val cumulativeCacheHit: Long = 0,
     val cumulativeCacheMiss: Long = 0,
-    val error: String? = null
+    val error: String? = null,
+    val providers: List<ProviderInfo> = emptyList(),
+    val showProviderDialog: Boolean = false,
+    val providerMessage: String? = null
 )
 
 class ChatViewModel(
@@ -329,6 +332,13 @@ class ChatViewModel(
                 pendingContent = StringBuilder()
                 pendingReasoning = StringBuilder()
                 pendingToolCards.clear()
+                // 若后端已切换到别的 session，重载历史避免显示旧对话
+                if (event.sessionCurrent == false) {
+                    viewModelScope.launch {
+                        val history = repository.getHistory()
+                        rebuildFromHistory(history)
+                    }
+                }
             }
 
             "reasoning" -> {
@@ -677,6 +687,40 @@ class ChatViewModel(
 
     fun toggleSidebar() {
         _uiState.update { it.copy(showSidebar = !it.showSidebar) }
+    }
+
+    // ── Provider 配置管理 ──
+
+    fun showProviderDialog() {
+        _uiState.update { it.copy(showProviderDialog = true, providerMessage = null) }
+        refreshProviders()
+    }
+
+    fun dismissProviderDialog() {
+        _uiState.update { it.copy(showProviderDialog = false) }
+    }
+
+    fun refreshProviders() {
+        viewModelScope.launch {
+            val list = repository.listProviders()
+            _uiState.update { it.copy(providers = list) }
+        }
+    }
+
+    fun addProvider(p: ProviderInfo) {
+        viewModelScope.launch {
+            val (ok, msg) = repository.upsertProvider(p)
+            _uiState.update { it.copy(providerMessage = msg) }
+            if (ok) refreshProviders()
+        }
+    }
+
+    fun removeProvider(name: String) {
+        viewModelScope.launch {
+            val (ok, msg) = repository.deleteProvider(name)
+            _uiState.update { it.copy(providerMessage = msg) }
+            if (ok) refreshProviders()
+        }
     }
 
     fun dismissError() {
